@@ -1,0 +1,13 @@
+name: printbot
+main: org.printcraft.printbot.PrintBot
+version: 1.0b
+commands:
+  pb_print:
+    description: Prints area to stl
+    usage: /pb_print x y z size
+  pb_materialise:
+    description: Prints area to stl and sends it to Materialise
+    usage: /pb_materialise x y z size
+  pb_clear:
+    description: Clears the area
+    usage: /pb_clear x y z size
