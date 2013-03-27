@@ -1,13 +1,25 @@
 name: printbot
 main: org.printcraft.printbot.PrintBot
-version: 1.0b
+version: 1.1b
+depend: [WorldEdit, WorldGuard, WGCustomFlags]
 commands:
-  pb_print:
-    description: Prints area to stl
-    usage: /pb_print x y z size
-  pb_materialise:
-    description: Prints area to stl and sends it to Materialise
-    usage: /pb_materialise x y z size
-  pb_clear:
-    description: Clears the area
-    usage: /pb_clear x y z size
+  printbot_print:
+    description: Prints a WorldGuard region
+    usage: /printbot_print regionName
+    alias: printbot print 
+  printbot_clear:
+    description: Clears a WorldGuard region
+    usage: /printbot_clear regionName
+    alias: printbot clear
+  printplot_claim:
+    description: Claims a WorldGuard region
+    usage: /printplot_claim regionName
+    alias: printplot claim
+  printplot_unclaim:
+    description: Unclaims a WorldGuard region
+    usage: /printplot_unclaim regionName
+    alias: printplot unclaim
+  printplot_create:
+    description: Creates a printplot on a WorldGuard region
+    usage: /printplot_create regionName
+    alias: printplot create
