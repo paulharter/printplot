@@ -1,4 +1,4 @@
-printbot
+printplot
 ========
 
 Minecraft Plugin for printcraft

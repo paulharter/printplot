@@ -1,25 +1,26 @@
-name: printbot
-main: org.printcraft.printbot.PrintBot
+name: printplot
+main: org.printcraft.printplot.PrintPlot
 version: 1.1b
 depend: [WorldEdit, WorldGuard, WGCustomFlags]
 commands:
-  printbot_print:
-    description: Prints a WorldGuard region
-    usage: /printbot_print regionName
-    alias: printbot print 
-  printbot_clear:
-    description: Clears a WorldGuard region
-    usage: /printbot_clear regionName
-    alias: printbot clear
   printplot_claim:
     description: Claims a WorldGuard region
     usage: /printplot_claim regionName
-    alias: printplot claim
+    aliases: ppclaim
   printplot_unclaim:
     description: Unclaims a WorldGuard region
     usage: /printplot_unclaim regionName
-    alias: printplot unclaim
+    aliases: ppunclaim
+  printplot_add:
+    description: Adds a player to a your plot
+    usage: /printplot_add playerName
+    aliases: ppadd
+  printplot_remove:
+    description: Removes a player to a your plot
+    usage: /printplot_remove playerName
+    aliases: ppremove
   printplot_create:
-    description: Creates a printplot on a WorldGuard region
-    usage: /printplot_create regionName
-    alias: printplot create
+    description: Creates a printplot on all worldguard regions with a number
+    usage: /printplot_create
+    aliases: ppcreate
+    
