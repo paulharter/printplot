@@ -127,7 +127,7 @@ public class PrintPlot extends JavaPlugin implements Listener {
     		
     	    if(player.hasPermission("printplot.claim")) {
     	    	
-    	    	int claimPeriod = this.getConfig().getInt("claimcheck");
+    	    	int claimPeriod = this.getConfig().getInt("claim");
 
     	    	if(!region.hasMembersOrOwners()){
     	    		
@@ -150,6 +150,8 @@ public class PrintPlot extends JavaPlugin implements Listener {
 						e1.printStackTrace();
 					}
             		setUnclaimFlag(region, (long)claimPeriod);
+
+            		
             		setAreaOwner(world, region, playerName);
             		try {
 						regionManager.save();
@@ -483,7 +485,6 @@ public class PrintPlot extends JavaPlugin implements Listener {
 		setBlockAndData(world, control_origin, new Location(world, 0, 2, 0), 24, orientation, (byte)2);
 		
 		
-
 		setButton(world, control_origin, new Location(world, -2, 1, -1), Material.STONE_BUTTON.getId(), orientation);
 		setButton(world, control_origin, new Location(world, -1, 1, -1), Material.STONE_BUTTON.getId(), orientation);
 	
@@ -575,16 +576,16 @@ public class PrintPlot extends JavaPlugin implements Listener {
     }
     
     public void setUnclaimFlag(ProtectedRegion region, long seconds){
-    	Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-    	long secondsSinceEpoch = calendar.getTimeInMillis() / 1000L;
+    	
+    	
+    	long secondsSinceEpoch = System.currentTimeMillis() / 1000l;
     	long unclaimTime = secondsSinceEpoch + seconds;
     	region.setFlag(UNCLAIM_TIME_FLAG, String.valueOf(unclaimTime));
     }
     
     
     public boolean checkUnclaimFlag(ProtectedRegion region){
-    	Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-    	long secondsSinceEpoch = calendar.getTimeInMillis() / 1000L;
+    	long secondsSinceEpoch = System.currentTimeMillis() / 1000l;
     	long unclaimTime = Long.valueOf(region.getFlag(UNCLAIM_TIME_FLAG));
     	return secondsSinceEpoch > unclaimTime;
     }
