@@ -1,0 +1,114 @@
+name: printplot
+main: org.printcraft.printplot.PrintPlot
+author: paulharter
+description: Manages building plots for use with Printcraft
+version: 1.4
+depend: [WorldEdit, WorldGuard, WGCustomFlags]
+commands:
+  tp:
+    description: Teleport to another player
+    permission: printplot.tp
+    usage: /tp playerName
+    alias: pp tp
+  home:
+    description: Teleport to your plot
+    permission: printplot.home
+    usage: /home
+    alias: pp home
+  spawn:
+    description: Teleport to spawn
+    permission: printplot.spawn
+    usage: /spawn
+    alias: pp spawn
+  printplot_claim:
+    description: Claims a WorldGuard region
+    permission: printplot.claim
+    usage: /printplot_claim regionName
+    alias: pp claim
+  printplot_clear:
+    description: Clears a WorldGuard region
+    permission: printplot.clear
+    usage: /printplot_clear regionName
+    alias: pp clear
+  printplot_unclaim:
+    description: Unclaims a WorldGuard region
+    permission: printplot.unclaim
+    usage: /printplot_unclaim regionName
+    alias: pp unclaim
+  printplot_add:
+    description: Adds a player to a your plot
+    permission: printplot.add
+    usage: /printplot_add playerName
+    alias: pp add
+  printplot_remove:
+    description: Removes a player to a your plot
+    permission: printplot.remove
+    usage: /printplot_remove playerName
+    alias: pp remove
+  printplot_create:
+    description: Creates a printplot on all worldguard regions with a number
+    permission: printplot.create
+    usage: /printplot_create
+    alias: pp create
+  printplot_saveall:
+    description: Saves all the plots
+    permission: printplot.saveall
+    usage: /printplot_saveall
+    alias: pp saveall
+  printplot_loadall:
+    description: Loads all the plots
+    permission: printplot.loadall
+    usage: /printplot_loadall
+    alias: pp loadall
+permissions:
+  printplot.*:
+    description: Gives access to all Printplot commands
+    children:
+      printplot.claim: true
+      printplot.clear: true
+      printplot.unclaim: true
+      printplot.add: true
+      printplot.remove: true
+      printplot.create: true
+      printplot.tp: true
+      printplot.home: true
+      printplot.spawn: true
+  printplot.tp:
+    description: Allows you to teleport to another player
+    default: true
+  printplot.home:
+    description: Allows you to teleport to your plot
+    default: true
+  printplot.spawn:
+    description: Allows you to teleport to spawn
+    default: true
+  printplot.claim:
+    description: Allows you to claim ownership of a WorldGuard region
+    default: true
+  printplot.clear:
+    description: Allows you to clear a WorldGuard region that you can build in
+    default: true
+  printplot.clearall:
+    description: Allows you to clear any WorldGuard region
+    default: op
+  printplot.unclaim:
+    description: Allows you to unclaim a WorldGuard region that you own
+    default: true
+  printplot.unclaimall:
+    description: Allows you to unclaim any WorldGuard region
+    default: op
+  printplot.add:
+    description: Allows you to add players as members of your region
+    default: true
+  printplot.remove:
+    description: Allows you to remove players as members of your region
+    default: true
+  printplot.create:
+    description: Allows you to create all regions
+    default: op
+  printplot.saveall:
+    description: Allows you to save all regions
+    default: op
+  printplot.loadall:
+    description: Allows you to load all regions
+    default: op

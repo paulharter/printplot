@@ -1,5 +1,7 @@
 package org.printcraft.printplot;
 
+//import org.apache.http.client.ClientProtocolException;
+//import org.apache.http.client.HttpClient;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -12,10 +14,12 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 
 import com.mewin.WGCustomFlags.WGCustomFlagsPlugin;
-
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.domains.DefaultDomain;
 import com.sk89q.worldguard.protection.managers.RegionManager;
@@ -26,12 +30,29 @@ import com.sk89q.worldguard.protection.flags.InvalidFlagFormat;
 import com.sk89q.worldguard.protection.flags.StringFlag;
 import com.sk89q.worldguard.protection.flags.IntegerFlag;
 import com.sk89q.worldedit.BlockVector;
+import com.sk89q.worldedit.CuboidClipboard;
+import com.sk89q.worldedit.EditSession;
+import com.sk89q.worldedit.MaxChangedBlocksException;
 import com.sk89q.worldedit.Vector;
+import com.sk89q.worldedit.LocalSession;
+import com.sk89q.worldedit.bukkit.BukkitWorld;
+import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 
-import java.util.Calendar;
+
+import com.sk89q.worldedit.data.DataException;
+import com.sk89q.worldedit.masks.CombinedMask;
+import com.sk89q.worldedit.masks.Mask;
+import com.sk89q.worldedit.masks.RegionMask;
+import com.sk89q.worldedit.regions.CuboidRegion;
+import com.sk89q.worldedit.regions.Region;
+import com.sk89q.worldedit.schematic.SchematicFormat;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
+
 
  
 class UnclaimTask extends BukkitRunnable {
@@ -65,7 +86,21 @@ public class PrintPlot extends JavaPlugin implements Listener {
     	wgCustomFlagsPlugin.addCustomFlag(UNCLAIM_TIME_FLAG);
     	wgCustomFlagsPlugin.addCustomFlag(ORIENTATION_FLAG);
     	int check = this.getConfig().getInt("claimcheck");
+    	updateAllOwnershipDisplays();
     	getServer().getScheduler().scheduleSyncRepeatingTask(this, new UnclaimTask(this), 20*check, 20*check);
+    	
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        setMask(player);
+    }
+    
+    @EventHandler
+    public void onLogin(PlayerChangedWorldEvent event) {
+        Player player = event.getPlayer();
+        setMask(player);
     }
     
     private WGCustomFlagsPlugin getWGCustomFlags()
@@ -96,6 +131,228 @@ public class PrintPlot extends JavaPlugin implements Listener {
         return (WorldGuardPlugin) plugin;
     }
     
+    private WorldEditPlugin getWorldEdit(){
+    	
+        Plugin plugin = getServer().getPluginManager().getPlugin("WorldEdit");
+     
+        // WorldGuard may not be loaded
+        if (plugin == null || !(plugin instanceof WorldEditPlugin)) {
+            return null; // Maybe you want throw an exception instead
+        }
+     
+        return (WorldEditPlugin) plugin;
+    }
+    
+    public void updateAllOwnershipDisplays(){
+    	
+    	List<World> worlds = getServer().getWorlds();
+    	WorldGuardPlugin worldGuard = getWorldGuard();
+    	
+		for (World world : worlds)
+		{
+			RegionManager regionManager = worldGuard.getRegionManager(world);
+			Map <String,ProtectedRegion> allRegions = regionManager.getRegions();
+			
+			for (Map.Entry<String,ProtectedRegion> entry : allRegions.entrySet())
+			{
+				ProtectedRegion region = entry.getValue();
+				if(region.hasMembersOrOwners()){
+					String ownername = (String) region.getOwners().getPlayers().toArray()[0];
+					setAreaOwner(world, region, ownername);
+				}
+				else{
+					setAreaOwner(world, region, "");
+				}
+			}
+		}
+    }
+    
+    public boolean tp(World world, Player player, String[] args){
+    	
+		Player player2;
+		
+    	//if a playername is given
+    	if(args.length == 1){
+    		String name = args[0];
+    		player2 = (getServer().getPlayer(name));
+            if (player2 == null) {
+                player.sendMessage(name + " is not online!");
+                return false;
+             }
+    	}
+    	else{
+    		return false;
+    	}
+    	
+    	Location tploc = player2.getLocation();
+    	player.teleport(tploc);
+
+		return true;
+    }
+    
+    
+    public void loadFromSchematic(World world, ProtectedRegion region){
+ 
+    	Vector min = region.getMinimumPoint();
+    	Vector max = region.getMaximumPoint();
+    	Vector size = max.subtract(min).add(1, 1, 1);
+
+		SchematicFormat sf  = SchematicFormat.MCEDIT;
+		File schematic_dir = new File("plugins/printplot/saves");
+		if (!schematic_dir.exists()) {
+			schematic_dir.mkdirs();
+		}
+
+		String localFilename = "plugins/printplot/saves/" + region.getId() + ".schematic";
+		File schfile = new File(localFilename);
+		
+		if (!schfile.exists()) {
+			return;
+		}
+
+		BukkitWorld localworld = new BukkitWorld(world);
+		EditSession editSession = new EditSession(localworld, size.getBlockX() * size.getBlockY() * size.getBlockZ());
+		CuboidClipboard clipboard = null;
+		try {
+			clipboard = sf.load(schfile);
+		} catch (DataException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		try {
+			clipboard.place(editSession, min, false);
+		} catch (MaxChangedBlocksException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	
+    }
+    
+    public void saveToSchematic(World world, ProtectedRegion region){
+    	
+    	Vector min = region.getMinimumPoint();
+    	Vector max = region.getMaximumPoint();
+    	Vector size = max.subtract(min).add(1, 1, 1);
+    	
+		BukkitWorld localworld = new BukkitWorld(world);
+		EditSession editSession = new EditSession(localworld, size.getBlockX() * size.getBlockY() * size.getBlockZ());
+		CuboidClipboard clipboard = new CuboidClipboard(size, min);
+		clipboard.copy(editSession);
+
+		SchematicFormat sf  = SchematicFormat.MCEDIT;
+		File schematic_dir = new File("plugins/printplot/saves");
+		if (!schematic_dir.exists()) {
+			schematic_dir.mkdirs();
+		}
+		
+		File file = null;
+		try {
+			file = new File("plugins/printplot/saves/" + region.getId() + ".schematic");
+			try {
+				sf.save(clipboard, file);
+			} catch (DataException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} catch (IOException e1) {
+			// TODO Auto-generated catch blockw
+			e1.printStackTrace();
+		} 
+
+    }
+    
+    public boolean saveall(World world, RegionManager regionManager, Player player){
+		getLogger().info("printbot saving all plots");
+		
+	    if(player.hasPermission("printplot.saveall")) {
+	    	
+	    	Map <String,ProtectedRegion> allRegions = regionManager.getRegions();
+    		
+    		for (Map.Entry<String,ProtectedRegion> entry : allRegions.entrySet())
+    		{
+        		try {
+        			Integer.valueOf(entry.getKey());
+        			saveToSchematic(world, entry.getValue());
+        			
+				} catch (NumberFormatException e) {
+				}
+        		catch (Exception e) {
+					e.printStackTrace();
+				}
+    		}
+	    }
+	    else{
+	    	player.sendMessage("You don't have permission to save plots");
+	    	
+	    }
+	    return true;
+    }
+    
+    
+    public boolean loadall(World world, RegionManager regionManager, Player player){
+		getLogger().info("printbot loading all plots");
+		
+	    if(player.hasPermission("printplot.saveall")) {
+	    	
+	    	Map <String,ProtectedRegion> allRegions = regionManager.getRegions();
+    		
+    		for (Map.Entry<String,ProtectedRegion> entry : allRegions.entrySet())
+    		{
+        		try {
+        			Integer.valueOf(entry.getKey());
+        			loadFromSchematic(world, entry.getValue());
+        			
+				} catch (NumberFormatException e) {
+				}
+        		catch (Exception e) {
+					e.printStackTrace();
+				}
+    		}
+	    }
+	    else{
+	    	player.sendMessage("You don't have permission to load plots");
+	    	
+	    }
+	    return true;
+    }
+    
+    
+    public boolean home(World world, RegionManager regionManager, Player player){
+		Map <String,ProtectedRegion> allRegions = regionManager.getRegions();
+		
+		ProtectedRegion region = null;
+		
+		for (Map.Entry<String,ProtectedRegion> entry : allRegions.entrySet())
+		{
+			if (entry.getValue().isOwner(player.getName())){
+				region = entry.getValue();
+			}
+		}
+		
+		if(region != null){
+			
+			BlockVector max = region.getMaximumPoint();
+			BlockVector min = region.getMinimumPoint();
+			
+			int x = (max.getBlockX() + min.getBlockX())/2;
+			int z = (max.getBlockZ() + min.getBlockZ())/2;
+			int y = max.getBlockY() + 5;
+			
+			player.setFlying(true);
+			Location tplocation = new Location(world, x, y, z);
+			player.teleport(tplocation);
+		}
+		else{
+			player.sendMessage("You dont have a claim at the moment");
+		}
+	
+		return true;
+    }
+    
     
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args){
     	
@@ -105,6 +362,7 @@ public class PrintPlot extends JavaPlugin implements Listener {
     		player = (Player) sender;
     	}
     	else{
+    		
     		player = (getServer().getPlayer(args[1]));
             if (player == null) {
                 sender.sendMessage(args[1] + " is not online!");
@@ -117,6 +375,38 @@ public class PrintPlot extends JavaPlugin implements Listener {
 		WorldGuardPlugin worldGuard = getWorldGuard();
 		RegionManager regionManager = worldGuard.getRegionManager(world);
 		String playerName = player.getName();
+		
+		//send player home
+    	if(cmd.getName().equalsIgnoreCase("home")){ 
+    		return this.home(world, regionManager, player);
+    	}
+    	
+		//send player to other player
+    	if(cmd.getName().equalsIgnoreCase("tp")){ 
+    		return this.tp(world, player, args);
+    	}
+    	
+		//send player to spawn
+    	if(cmd.getName().equalsIgnoreCase("spawn")){ 
+    		
+        	Location tploc = world.getSpawnLocation();
+        	player.teleport(tploc);
+ 
+			return true;
+    	}
+    	
+		//save all plots
+    	if(cmd.getName().equalsIgnoreCase("printplot_saveall")){ 
+    		
+    		return this.saveall(world, regionManager, player);
+    	}
+    	
+		//load all plots
+    	if(cmd.getName().equalsIgnoreCase("printplot_loadall")){ 
+    		
+    		return this.loadall(world, regionManager, player);
+    	}
+    	
 
     	//claim a plot
     	if(cmd.getName().equalsIgnoreCase("printplot_claim")){ 
@@ -141,8 +431,9 @@ public class PrintPlot extends JavaPlugin implements Listener {
     	    			}
     	    		}
     	    		
-        			player.sendMessage("You have claimed this plot for 24 hours");
+        			player.sendMessage("You have claimed this plot for 1 week");
             		region.getOwners().addPlayer(playerName);
+            		setMask(player);
             		try {
 						region.setFlag(DefaultFlag.BUILD, DefaultFlag.BUILD.parseInput(worldGuard, sender, "none"));
 					} catch (InvalidFlagFormat e1) {
@@ -151,7 +442,7 @@ public class PrintPlot extends JavaPlugin implements Listener {
 					}
             		setUnclaimFlag(region, (long)claimPeriod);
 
-            		
+            		getLogger().info("about to set owner");
             		setAreaOwner(world, region, playerName);
             		try {
 						regionManager.save();
@@ -171,7 +462,7 @@ public class PrintPlot extends JavaPlugin implements Listener {
     						// TODO Auto-generated catch block
     						e.printStackTrace();
     					}
-    	    			player.sendMessage("You have renewed the claim on this plot until 24 hours from now");
+    	    			player.sendMessage("You have renewed the claim on this plot for one week from now");
     	    			return true;
     	    		}
     	    		else{
@@ -191,7 +482,6 @@ public class PrintPlot extends JavaPlugin implements Listener {
     		String area = args[0];
     		ProtectedRegion region  = regionManager.getRegion(area);
     		
-    		getLogger().info("printplot unclaiming");
     		
     	    if(player.hasPermission("printplot.unclaim")) {
 
@@ -200,8 +490,9 @@ public class PrintPlot extends JavaPlugin implements Listener {
             		return true;
     	    	}
     	    	else{
-    	    		if(region.isOwner(playerName)){
+    	    		if(region.isOwner(playerName) || player.hasPermission("printplot.unclaimall")){
     	    			unclaimRegion(world, region, sender);
+    	    			setMask(player);
     	    			player.sendMessage("You have unclaimed this plot");
     	    			return true;
     	    		}
@@ -231,8 +522,11 @@ public class PrintPlot extends JavaPlugin implements Listener {
             		try {
             			Integer.valueOf(entry.getKey());
             			createPlot(world, entry.getValue());
-					} catch (Exception e) {
-
+            			
+					} catch (NumberFormatException e) {
+					}
+            		catch (Exception e) {
+						e.printStackTrace();
 					}
 	    		}
     	    }
@@ -286,6 +580,44 @@ public class PrintPlot extends JavaPlugin implements Listener {
     	    	return true;
     		}
     	}
+    	
+    	if(cmd.getName().equalsIgnoreCase("printplot_clear")){ // If the player typed /basic then do the following...
+    		getLogger().info("printplot_clear has been invoked!");
+    		
+    		String area = args[0];
+    		ProtectedRegion region  = regionManager.getRegion(area);
+    	
+    		boolean can_build = true;
+    		
+    		if(region.hasMembersOrOwners()){
+    			can_build = region.isMember(playerName);
+    		}
+    		else{
+    			can_build = true;
+    		}
+			
+    	    if((can_build  && player.hasPermission("printplot.clear")) || player.hasPermission("printplot.clearall")) {
+
+    			player.sendMessage("Clearing print area");		
+	        	BlockVector min = region.getMinimumPoint();
+	        	BlockVector max = region.getMaximumPoint();
+
+	    		for (int x = min.getBlockX(); x <= max.getBlockX(); x++){
+	   			     for (int y = min.getBlockY(); y <= max.getBlockY(); y++){
+	   			        for (int z = min.getBlockZ(); z <= max.getBlockZ(); z++) {
+	   			        	Block b = world.getBlockAt(x, y, z);
+	   			        	b.setType(Material.AIR);
+	   			        }
+	   			    }
+	   			}	
+        		return true;
+    	    }
+    	    else{
+    	    	player.sendMessage("You dont have permission to clear");
+    	    	return true;
+    	    }
+
+    	} //If this has happened the function will return true. 
     	
     	if(cmd.getName().equalsIgnoreCase("printplot_remove")){ 
     		
@@ -353,8 +685,6 @@ public class PrintPlot extends JavaPlugin implements Listener {
 		} catch (ProtectionDatabaseException e) {
 			e.printStackTrace();
 		}	
-		
-		
     }
     
     
@@ -367,7 +697,6 @@ public class PrintPlot extends JavaPlugin implements Listener {
     	
 		for (World world : worlds)
 		{
-			
 			RegionManager regionManager = worldGuard.getRegionManager(world);
 			Map <String,ProtectedRegion> allRegions = regionManager.getRegions();
 			
@@ -392,7 +721,14 @@ public class PrintPlot extends JavaPlugin implements Listener {
     
     public void createPlot(World world, ProtectedRegion region){
     	
-    	int orientation = region.getFlag(ORIENTATION_FLAG);	
+    	int orientation = 0;
+
+		try {
+			orientation = region.getFlag(ORIENTATION_FLAG);		
+		} catch (NullPointerException e) {
+			region.setFlag(ORIENTATION_FLAG, 0);	
+		}
+    	
     	BlockVector min = region.getMinimumPoint();
     	BlockVector max = region.getMaximumPoint();
     	Vector bloc = BlockVector.getMidpoint(min, max);
@@ -425,6 +761,13 @@ public class PrintPlot extends JavaPlugin implements Listener {
     	int maxz = max.getBlockZ();
     	
 		for (int x = minx - 1; x <= maxx + 1; x++){
+	        for (int z = minz - 1; z <= maxz + 1; z++) {
+		        Block b = world.getBlockAt(x, miny - 1, z);
+		        b.setType(Material.GRASS);
+	        }
+		}
+    	
+		for (int x = minx - 1; x <= maxx + 1; x++){
 		     for (int y = miny - 1; y <= maxy + 1; y++){
 		        for (int z = minz - 1; z <= maxz + 1; z++) {
 		        	int truth = 0;
@@ -433,18 +776,18 @@ public class PrintPlot extends JavaPlugin implements Listener {
 		        	if(z == minz - 1 || z == maxz + 1)truth++;
 		        	if(truth > 1){
 			        	Block b = world.getBlockAt(x, y, z);
-			        	if(y > miny - 1){
-			        		b.setTypeId(0);
+			        	if(y == miny - 1){
+			        		b.setType(Material.GLOWSTONE);
 			        	}
 			        	else{
-			        		b.setTypeId(Material.GLOWSTONE.getId());
+			        		b.setType(Material.AIR);
 			        	}
 		        	}
 		        }
 		    }
 		}	
 
-		
+		/*
 		for (int x = minx - 1; x <= maxx + 1; x++){
         	Block b = world.getBlockAt(x, miny - 1, bloc.getBlockZ());
         	b.setTypeId(Material.GLOWSTONE.getId());
@@ -454,45 +797,63 @@ public class PrintPlot extends JavaPlugin implements Listener {
         	Block b = world.getBlockAt(bloc.getBlockX(), miny - 1, z);
         	b.setTypeId(Material.GLOWSTONE.getId());
 		}
+		*/
 		
-    	Block b = world.getBlockAt(bloc.getBlockX(), miny - 1, bloc.getBlockZ());
-    	b.setTypeId(Material.LAPIS_BLOCK.getId());
 	
+    	Block b = world.getBlockAt(bloc.getBlockX(), miny - 1, bloc.getBlockZ());
+    	b.setType(Material.LAPIS_BLOCK);
+    	
+    	b = world.getBlockAt(bloc.getBlockX()-2, miny - 1, bloc.getBlockZ());
+    	b.setType(Material.GLOWSTONE);
+    	b = world.getBlockAt(bloc.getBlockX()-1, miny - 1, bloc.getBlockZ());
+    	b.setType(Material.GLOWSTONE);
+    	b = world.getBlockAt(bloc.getBlockX()+1, miny - 1, bloc.getBlockZ());
+    	b.setType(Material.GLOWSTONE);
+    	b = world.getBlockAt(bloc.getBlockX()+2, miny - 1, bloc.getBlockZ());
+    	b.setType(Material.GLOWSTONE);
+    	b = world.getBlockAt(bloc.getBlockX(), miny - 1, bloc.getBlockZ() - 2);
+    	b.setType(Material.GLOWSTONE);
+    	b = world.getBlockAt(bloc.getBlockX(), miny - 1, bloc.getBlockZ() - 1);
+    	b.setType(Material.GLOWSTONE);
+    	b = world.getBlockAt(bloc.getBlockX(), miny - 1, bloc.getBlockZ() + 1);
+    	b.setType(Material.GLOWSTONE);
+    	b = world.getBlockAt(bloc.getBlockX(), miny - 1, bloc.getBlockZ() + 2);
+    	b.setType(Material.GLOWSTONE);
+    	
 		String plotId = region.getId();
 		
-		setBlockAndData(world, control_origin, new Location(world, -3, 0, 0), 0, orientation, (byte)2);
+		setBlockAndData(world, control_origin, new Location(world, -3, 0, 0), Material.AIR, orientation, (byte)2);
 		
-		setBlockAndData(world, control_origin, new Location(world, -2, 0, 0), 24, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, -1, 0, 0), 24, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, 0, 0, 0), 24, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, 1, 0, 0), 24, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, 2, 0, 0), 24, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, 3, 0, 0), 0, orientation, (byte)2);
+		setBlockAndData(world, control_origin, new Location(world, -2, 0, 0), Material.QUARTZ_BLOCK, orientation, (byte)0);
+		setBlockAndData(world, control_origin, new Location(world, -1, 0, 0), Material.QUARTZ_BLOCK, orientation, (byte)0);
+		setBlockAndData(world, control_origin, new Location(world, 0, 0, 0), Material.QUARTZ_BLOCK, orientation, (byte)0);
+		setBlockAndData(world, control_origin, new Location(world, 1, 0, 0), Material.QUARTZ_BLOCK, orientation, (byte)0);
+		setBlockAndData(world, control_origin, new Location(world, 2, 0, 0), Material.QUARTZ_BLOCK, orientation, (byte)0);
+		setBlockAndData(world, control_origin, new Location(world, 3, 0, 0), Material.AIR, orientation, (byte)2);
 
-		setBlockAndData(world, control_origin, new Location(world, -3, 1, 0), 0, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, -2, 1, 0), 24, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, -1, 1, 0), 24, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, 0, 1, 0), 24, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, 1, 1, 0), 24, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, 2, 1, 0), 24, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, 3, 1, 0), 0, orientation, (byte)2);
+		setBlockAndData(world, control_origin, new Location(world, -3, 1, 0), Material.AIR, orientation, (byte)2);
+		setBlockAndData(world, control_origin, new Location(world, -2, 1, 0), Material.QUARTZ_BLOCK, orientation, (byte)0);
+		setBlockAndData(world, control_origin, new Location(world, -1, 1, 0), Material.QUARTZ_BLOCK, orientation, (byte)0);
+		setBlockAndData(world, control_origin, new Location(world, 0, 1, 0), Material.QUARTZ_BLOCK, orientation, (byte)0);
+		setBlockAndData(world, control_origin, new Location(world, 1, 1, 0), Material.QUARTZ_BLOCK, orientation, (byte)0);
+		setBlockAndData(world, control_origin, new Location(world, 2, 1, 0), Material.QUARTZ_BLOCK, orientation, (byte)0);
+		setBlockAndData(world, control_origin, new Location(world, 3, 1, 0), Material.AIR, orientation, (byte)2);
 		
-		
-		setBlockAndData(world, control_origin, new Location(world, 0, 0, -1), 0, orientation, (byte)2);
-		setBlockAndData(world, control_origin, new Location(world, 0, 1, -1), 0, orientation, (byte)2);
+		setBlockAndData(world, control_origin, new Location(world, 0, 0, -1), Material.AIR, orientation, (byte)2);
+		setBlockAndData(world, control_origin, new Location(world, 0, 1, -1), Material.AIR, orientation, (byte)2);
 		
 	
-		setBlockAndData(world, control_origin, new Location(world, 0, 2, 0), 24, orientation, (byte)2);
+		setBlockAndData(world, control_origin, new Location(world, 0, 2, 0), Material.QUARTZ_BLOCK, orientation, (byte)0);
 		
 		
-		setButton(world, control_origin, new Location(world, -2, 1, -1), Material.STONE_BUTTON.getId(), orientation);
-		setButton(world, control_origin, new Location(world, -1, 1, -1), Material.STONE_BUTTON.getId(), orientation);
+		setButton(world, control_origin, new Location(world, -2, 1, -1), Material.STONE_BUTTON, orientation);
+		setButton(world, control_origin, new Location(world, -1, 1, -1), Material.STONE_BUTTON, orientation);
 	
-		setButton(world, control_origin, new Location(world, 1, 1, -1), Material.STONE_BUTTON.getId(), orientation);
-		setButton(world, control_origin, new Location(world, 2, 1, -1), Material.STONE_BUTTON.getId(), orientation);
+		setButton(world, control_origin, new Location(world, 1, 1, -1), Material.STONE_BUTTON, orientation);
+		setButton(world, control_origin, new Location(world, 2, 1, -1), Material.STONE_BUTTON, orientation);
 		
-		setCommand(world, control_origin, new Location(world, 2, 2, 0), orientation, "printbot_print " + plotId + " @p");
-		setCommand(world, control_origin, new Location(world, 1, 2, 0), orientation, "printbot_clear " + plotId + " @p");
+		setCommand(world, control_origin, new Location(world, 2, 2, 0), orientation, "print " + plotId + " @p");
+		setCommand(world, control_origin, new Location(world, 1, 2, 0), orientation, "printplot_clear " + plotId + " @p");
 		
 		setCommand(world, control_origin, new Location(world, -1, 2, 0), orientation, "printplot_claim " + plotId + " @p");
 		setCommand(world, control_origin, new Location(world, -2, 2, 0), orientation, "printplot_unclaim " + plotId + " @p");
@@ -514,10 +875,64 @@ public class PrintPlot extends JavaPlugin implements Listener {
 		setSign(world, control_origin, new Location(world, 0, 2, -1), text5, orientation);
     }
     
+    public class FixedCombinedMask extends CombinedMask {
+    	private final List<Mask> masks = new ArrayList<Mask>();
+    	
+    	
+    	public void add(Mask mask) {
+            masks.add(mask);
+        }
+   
+        @Override
+        public boolean matches(EditSession editSession, Vector pos) {
+            for (Mask mask : masks) {
+                if (mask.matches(editSession, pos)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+    
+    public void setMask(Player player){
+    	
+    	WorldEditPlugin worldEditPlugin = getWorldEdit();
+    	WorldGuardPlugin worldGuard = getWorldGuard();
+    	
+    	FixedCombinedMask cb = new FixedCombinedMask();
+		Location loc = player.getLocation();
+		World world = loc.getWorld();
+
+		RegionManager regionManager = worldGuard.getRegionManager(world);
+		Map <String,ProtectedRegion> allRegions = regionManager.getRegions();
+		
+		for (Map.Entry<String, ProtectedRegion> entry : allRegions.entrySet())
+		{
+			ProtectedRegion pr = entry.getValue();
+			if (pr.isMember(player.getName()) || entry.getKey().equals("default")){
+				Region region = (Region) new CuboidRegion((Vector)pr.getMinimumPoint(), (Vector)pr.getMaximumPoint());
+				cb.add(new RegionMask(region));
+			}
+		}
+		
+		LocalSession session = worldEditPlugin.getSession(player);
+    	session.setMask(cb);
+    }
+    
     
     public void setAreaOwner(World world, ProtectedRegion region, String name){
     	
-    	int orientation = region.getFlag(ORIENTATION_FLAG);		
+    	//System.out.printf("setAreaOwner %s", name);
+    	
+    	int orientation;
+
+		try {
+			orientation = region.getFlag(ORIENTATION_FLAG);		
+		} catch (NullPointerException e) {
+			System.out.printf("no flag");
+			return;
+		}
+    	
     	BlockVector min = region.getMinimumPoint();
     	BlockVector max = region.getMaximumPoint();
     	Vector bloc = BlockVector.getMidpoint(min, max);
@@ -543,17 +958,17 @@ public class PrintPlot extends JavaPlugin implements Listener {
     	Location control_origin = loc.clone().add(x, 0.0, z);
     	
     	byte materialdata = 5;
-    	int materialid = Material.WOOL.getId();
+    	Material material = Material.WOOL;
     	
     	if(name == ""){
     		materialdata = 5;
-    		materialid = Material.GRASS.getId();
+    		material = Material.GRASS;
     		String[] text = {"Plot " + region.getId(), "", "", ""};
     		setSign(world, control_origin, new Location(world, 0, 2, -1), text, orientation);
     	}
     	else{
     		materialdata = 14;
-    		materialid = Material.IRON_BLOCK.getId();
+    		material = Material.IRON_BLOCK;
     		int maxLength = (name.length() < 15)?name.length():15;
     		String[] text = {"Plot " + region.getId(), "", "Owner", name.substring(0, maxLength)};
     		setSign(world, control_origin, new Location(world, 0, 2, -1), text, orientation);
@@ -569,7 +984,8 @@ public class PrintPlot extends JavaPlugin implements Listener {
             for (zz = 0; zz <= depth; zz++) {
             	if(xx == 0 || zz == 0 || xx == width || zz == depth){
                 	Block b = world.getBlockAt((int)loc.getX() + (xx-(width/2)), (int)loc.getY() - 1, (int)loc.getZ() + (zz-(depth/2)));
-                	b.setTypeIdAndData(materialid, materialdata, false);
+                	b.setType(material);
+                	b.setData(materialdata);
             	}
             }
         }
@@ -577,17 +993,24 @@ public class PrintPlot extends JavaPlugin implements Listener {
     
     public void setUnclaimFlag(ProtectedRegion region, long seconds){
     	
-    	
     	long secondsSinceEpoch = System.currentTimeMillis() / 1000l;
     	long unclaimTime = secondsSinceEpoch + seconds;
     	region.setFlag(UNCLAIM_TIME_FLAG, String.valueOf(unclaimTime));
     }
     
+   
+    
     
     public boolean checkUnclaimFlag(ProtectedRegion region){
     	long secondsSinceEpoch = System.currentTimeMillis() / 1000l;
-    	long unclaimTime = Long.valueOf(region.getFlag(UNCLAIM_TIME_FLAG));
-    	return secondsSinceEpoch > unclaimTime;
+    	String ucflag = region.getFlag(UNCLAIM_TIME_FLAG);
+    	if(ucflag == null){
+    		return true;
+    	}
+    	else{
+	    	long unclaimTime = Long.valueOf(ucflag);
+	    	return secondsSinceEpoch > unclaimTime;
+    	}
     }
     
     public Location turn_round_origin(World world, Location loc, int quarter_turns){
@@ -610,34 +1033,39 @@ public class PrintPlot extends JavaPlugin implements Listener {
     	}
     }
     
-    public void setBlockAndData(World world, Location origin, Location block, int type, int turns, byte data){
+    public void setBlockAndData(World world, Location origin, Location block, Material mat, int turns, byte data){
     	Location rotated = turn_round_origin(world, block, turns);
     	Block b = world.getBlockAt(origin.clone().add(rotated));
-    	b.setTypeIdAndData(type, data, false);
+    	b.setType(mat);
+    	b.setData(data);
+    	
     }
     
     
-    public void setBlock(World world, Location origin, Location block, int type, int turns){
+    public void setBlock(World world, Location origin, Location block, Material mat, int turns){
     	Location rotated = turn_round_origin(world, block, turns);
     	Block b = world.getBlockAt(origin.clone().add(rotated));
-    	b.setTypeId(type);
+    	b.setType(mat);
     }
     
     public void setCommand(World world, Location origin, Location block, int turns, String command){
     	Location rotated = turn_round_origin(world, block, turns);
     	Block b = world.getBlockAt(origin.clone().add(rotated));
-    	b.setTypeId(137);
+    	b.setType(Material.COMMAND);
     	CommandBlock c = (CommandBlock)b.getState();
     	c.setCommand(command);
     	c.update();
     }
     
     
-    public void setButton(World world, Location origin, Location block, int type, int turns){
+    public void setButton(World world, Location origin, Location block, Material mat, int turns){
     	byte direction = BUTTON_ORIENTATION_LOOKUP[turns];
     	Location rotated = turn_round_origin(world, block, turns);
     	Block b = world.getBlockAt(origin.clone().add(rotated));
-    	b.setTypeIdAndData(Material.STONE_BUTTON.getId(), direction, false);
+    	b.setType(Material.STONE_BUTTON);
+    	b.setData(direction);
+    	
+    	
     }
     
     
@@ -646,7 +1074,8 @@ public class PrintPlot extends JavaPlugin implements Listener {
     	byte direction = SIGN_ORIENTATION_LOOKUP[turns];
     	Location rotated = turn_round_origin(world, block, turns);
     	Block b = world.getBlockAt(origin.clone().add(rotated));
-    	b.setTypeIdAndData(Material.WALL_SIGN.getId(), direction, false);
+    	b.setType(Material.WALL_SIGN);
+    	b.setData(direction);
     	Sign s = (Sign)b.getState();
     	
     	s.setLine(0, text[0]);
@@ -655,7 +1084,4 @@ public class PrintPlot extends JavaPlugin implements Listener {
     	s.setLine(3, text[3]);
     	s.update();
     }
-
-    
-    
 }

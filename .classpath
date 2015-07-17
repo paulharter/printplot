@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="/Users/paul/code/Bukkit/target/bukkit-1.5.1-R0.1-SNAPSHOT.jar">
-		<attributes>
-			<attribute name="javadoc_location" value="http://jd.bukkit.org/apidocs/"/>
-		</attributes>
-	</classpathentry>
-	<classpathentry kind="lib" path="/Users/paul/Dropbox/glowinthedark/printcraft/java_lib/WorldGuard.jar"/>
-	<classpathentry kind="lib" path="/Users/paul/Dropbox/glowinthedark/printcraft/java_lib/WorldEdit.jar"/>
-	<classpathentry kind="lib" path="/Users/paul/Dropbox/glowinthedark/printcraft/java_lib/WGCustomFlags.jar"/>
-	<classpathentry kind="output" path="bin"/>
+  <classpathentry kind="src" path="src/test/java" output="target/test-classes" including="**/*.java"/>
+  <classpathentry kind="src" path="src/main/java" including="**/*.java"/>
+  <classpathentry kind="src" path="src/main/resources" including="*.yml" excluding="**/*.java"/>
+  <classpathentry kind="output" path="target/classes"/>
+  <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+  <classpathentry kind="var" path="M2_REPO/junit/junit/3.8.1/junit-3.8.1.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/bukkit/bukkit/1.7.8-R0.1-SNAPSHOT/bukkit-1.7.8-R0.1-SNAPSHOT.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/bukkit/minecraft-server/1.7.8/minecraft-server-1.7.8.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/bukkit/craftbukkit/1.7.8-R0.1-SNAPSHOT/craftbukkit-1.7.8-R0.1-SNAPSHOT.jar"/>
+  <classpathentry kind="var" path="M2_REPO/com/sk89q/worldguard/5.9.1-SNAPSHOT/worldguard-5.9.1-SNAPSHOT.jar"/>
+  <classpathentry kind="var" path="M2_REPO/com/sk89q/worldedit/6.0.0-SNAPSHOT/worldedit-6.0.0-SNAPSHOT.jar"/>
+  <classpathentry kind="var" path="M2_REPO/de/schlichtherle/truezip/6.8.3/truezip-6.8.3.jar"/>
+  <classpathentry kind="var" path="M2_REPO/rhino/js/1.7R2/js-1.7R2.jar"/>
+  <classpathentry kind="var" path="M2_REPO/com/sk89q/commandbook/2.3/commandbook-2.3.jar"/>
+  <classpathentry kind="var" path="M2_REPO/net/sf/opencsv/opencsv/2.0/opencsv-2.0.jar"/>
+  <classpathentry kind="var" path="M2_REPO/com/nijikokun/iconomy/5.0/iconomy-5.0.jar"/>
+  <classpathentry kind="var" path="M2_REPO/com/google/guava/guava/10.0.1/guava-10.0.1.jar"/>
+  <classpathentry kind="var" path="M2_REPO/com/google/code/findbugs/jsr305/1.3.9/jsr305-1.3.9.jar"/>
+  <classpathentry kind="lib" path="/Users/paul/Dropbox/glowinthedark/printcraft/java_lib/WGCustomFlags.jar"/>
 </classpath>
